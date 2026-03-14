@@ -1,0 +1,27 @@
+name: vaultwarden-dev
+
+services:
+  vaultwarden:
+    image: vaultwarden/server:alpine
+    container_name: vaultwarden
+    env_file:
+      - ./vaultwarden.env
+    volumes:
+      - ./data:/data
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -fs http://localhost:80/ >/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: vaultwarden-proxy
+    depends_on:
+      - vaultwarden
+    ports:
+      - "444:444"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certs:/etc/nginx/certs:ro

@@ -1,0 +1,14 @@
+BASIC=bar
+SINGLE=bar
+DOUBLE=bar
+UNQUOTED_TRIM=around edges
+UNQUOTED_INNER=hello   world
+SINGLE_PAD=  padded single  
+DOUBLE_PAD=  padded double  
+EMPTY=
+EMPTY_SINGLE=
+EMPTY_DOUBLE=
+EQUALS=foo=bar=baz
+QUOTED_EQUALS=foo=bar=baz
+HASH_VALUE=#literal-hash
+DOUBLE_HASH=#still-literal
