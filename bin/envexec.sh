@@ -25,8 +25,9 @@ Sources (choose exactly one):
 Loads environment variables from selected Bitwarden item notes or from file content,
 then execs the command so the variables only exist in this process tree.
 
-Requirements:
-  BW_SESSION          Must already be set to a valid Bitwarden session key in item mode
+Requirements (--from-bw):
+  rbw                 Preferred backend; uses the rbw daemon — no session key needed
+  bw + BW_SESSION     Fallback backend; BW_SESSION must be set to a valid session key
 
 Options:
   -h, --help          Show this help text
@@ -62,6 +63,7 @@ debug_log() {
 
 DEBUG=false
 DANGEROUSLY_PRINT_ENV=false
+BW_BACKEND="${BW_BACKEND:-}"
 BW_FOLDER=""
 BW_CLI_SESSION=""
 FROM_BW=""
@@ -70,6 +72,21 @@ COMMAND_ARGS=()
 RAW_CONTENT=""
 WRITE_ENV_FILE=""
 WRITE_RAW_FILE=""
+
+detect_bw_backend() {
+  if [[ -n "${BW_BACKEND:-}" ]]; then
+    debug_log "Bitwarden backend (from env): $BW_BACKEND"
+    return
+  fi
+  if command -v rbw >/dev/null 2>&1; then
+    BW_BACKEND="rbw"
+  elif command -v bw >/dev/null 2>&1; then
+    BW_BACKEND="bw"
+  else
+    die "no Bitwarden CLI found; install rbw (https://github.com/doy/rbw) or the official bw CLI"
+  fi
+  debug_log "Bitwarden backend: $BW_BACKEND"
+}
 
 bw_prepare_context() {
   local status_json
@@ -210,8 +227,43 @@ bw_handle_failure() {
   die "$description failed. bw output: $output"
 }
 
+rbw_prepare_context() {
+  require_command rbw
+  rbw_sync_cache
+}
+
+rbw_sync_cache() {
+  local output
+  debug_log "Syncing rbw cache"
+
+  if ! output="$(rbw sync 2>&1)"; then
+    die "failed to sync rbw cache: $output"
+  fi
+}
+
+rbw_load_item_notes() {
+  local item_name=$1
+  local bw_folder=$2
+  local folder_args=()
+  local output
+
+  debug_log "Resolving rbw item: name='$item_name' folder='${bw_folder:-<unfiled>}'"
+
+  if [[ -n "$bw_folder" ]]; then
+    folder_args=(--folder "$bw_folder")
+  fi
+
+  if ! output="$(rbw get "${folder_args[@]}" --field=notes "$item_name" 2>&1)"; then
+    die "rbw: failed to get item '$item_name'${bw_folder:+ in folder '$bw_folder'}: $output"
+  fi
+
+  RAW_CONTENT="$output"
+  debug_log "Loaded raw content from rbw item"
+}
+
 parse_args() {
   BW_CLI_SESSION=""
+  BW_BACKEND="${BW_BACKEND:-}"
   FROM_BW=""
   BW_FOLDER=""
   FROM_FILE=""
@@ -477,8 +529,14 @@ main() {
     load_raw_from_file "$FROM_FILE"
   else
     debug_log "Source mode: from-bw"
-    bw_prepare_context
-    bw_load_item_notes "$FROM_BW" "$BW_FOLDER"
+    detect_bw_backend
+    if [[ "$BW_BACKEND" == "rbw" ]]; then
+      rbw_prepare_context
+      rbw_load_item_notes "$FROM_BW" "$BW_FOLDER"
+    else
+      bw_prepare_context
+      bw_load_item_notes "$FROM_BW" "$BW_FOLDER"
+    fi
   fi
 
   write_raw_content "$RAW_CONTENT" "$WRITE_RAW_FILE"

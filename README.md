@@ -23,6 +23,11 @@ envexec --from-file .env.local -- your-command
 Load from Bitwarden/Vaultwarden and run a command:
 
 ```bash
+# with rbw (preferred — no session key needed)
+rbw unlock
+envexec --from-bw ".env.production" --bw-folder "deploy" -- your-command
+
+# with the official bw CLI (fallback)
 bw login
 export BW_SESSION="$(bw unlock --raw)"
 envexec --from-bw ".env.production" --bw-folder "deploy" -- your-command
@@ -37,6 +42,7 @@ Prefer this Bitwarden/Vaultwarden flow when you want secrets injected at runtime
 - Strict env parsing and validation
 - Explicit dangerous output mode for env-value printing
 - Secure output file write behavior
+- Works with `rbw` (no session management) or the official `bw` CLI
 
 ## Use cases
 
@@ -85,8 +91,9 @@ Sources (choose exactly one):
 Loads environment variables from selected Bitwarden item notes or from file content,
 then execs the command so the variables only exist in this process tree.
 
-Requirements:
-  BW_SESSION          Must already be set to a valid Bitwarden session key in item mode
+Requirements (--from-bw):
+  rbw                 Preferred backend; uses the rbw daemon — no session key needed
+  bw + BW_SESSION     Fallback backend; BW_SESSION must be set to a valid session key
 
 Options:
   -h, --help          Show this help text
@@ -124,7 +131,8 @@ Behavior:
 
 - Successful runs are quiet by default.
 - Errors go to `stderr` with non-zero exit.
-- `BW_SESSION` is consumed internally in Bitwarden/Vaultwarden mode and not propagated to child commands.
+- `BW_SESSION` is consumed internally in `bw` mode and not propagated to child commands.
+- `rbw` mode requires no session key — auth is managed by the rbw daemon.
 - Sensitive env dumping is explicit (`--dangerously-print-env`) and blocked with command execution.
 - Output writes are hardened (symlink rejection, strict permissions).
 

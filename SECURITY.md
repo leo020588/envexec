@@ -6,7 +6,7 @@ This project is a Bash CLI for sensitive environment handling. Security issues a
 
 ## Reporting a vulnerability
 
-Please report vulnerabilities privately to the repository owner.  
+Please report vulnerabilities privately to the repository owner.
 Do **not** open a public issue with exploit details before a fix is available.
 
 Include:
